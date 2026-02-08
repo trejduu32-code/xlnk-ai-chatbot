@@ -1,5 +1,6 @@
 import { cn } from "@/lib/utils";
 import { Bot, User } from "lucide-react";
+import MarkdownRenderer from "./MarkdownRenderer";
 
 interface ChatMessageProps {
   role: "user" | "assistant";
@@ -25,7 +26,11 @@ const ChatMessage = ({ role, content }: ChatMessageProps) => {
             : "bg-muted text-foreground rounded-bl-sm"
         )}
       >
-        <p className="whitespace-pre-wrap">{content}</p>
+        {isUser ? (
+          <p className="whitespace-pre-wrap">{content}</p>
+        ) : (
+          <MarkdownRenderer content={content} />
+        )}
       </div>
 
       {isUser && (
