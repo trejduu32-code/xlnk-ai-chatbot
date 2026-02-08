@@ -1,16 +1,6 @@
-import { Plus, MessageSquare, Trash2, Sparkles } from "lucide-react";
+import { Plus, MessageSquare, Trash2, Sparkles, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Conversation } from "@/hooks/useConversations";
-import {
-  Sidebar,
-  SidebarContent,
-  SidebarHeader,
-  SidebarMenu,
-  SidebarMenuItem,
-  SidebarMenuButton,
-  SidebarTrigger,
-  useSidebar,
-} from "@/components/ui/sidebar";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
@@ -20,6 +10,8 @@ interface ChatSidebarProps {
   onSelectConversation: (id: string) => void;
   onNewConversation: () => void;
   onDeleteConversation: (id: string) => void;
+  isOpen: boolean;
+  onClose: () => void;
 }
 
 const ChatSidebar = ({
@@ -28,76 +20,99 @@ const ChatSidebar = ({
   onSelectConversation,
   onNewConversation,
   onDeleteConversation,
+  isOpen,
+  onClose,
 }: ChatSidebarProps) => {
-  const { state } = useSidebar();
-  const collapsed = state === "collapsed";
+  const handleSelectConversation = (id: string) => {
+    onSelectConversation(id);
+    onClose();
+  };
 
   return (
-    <Sidebar
-      className={cn(
-        "border-r border-border bg-card transition-all duration-300",
-        collapsed ? "w-14" : "w-64"
+    <>
+      {/* Overlay for mobile */}
+      {isOpen && (
+        <div
+          className="fixed inset-0 bg-black/50 z-40 md:hidden"
+          onClick={onClose}
+        />
       )}
-      collapsible="icon"
-    >
-      <SidebarHeader className="p-3 border-b border-border">
-        <div className="flex items-center justify-between">
-          {!collapsed && (
+
+      {/* Sidebar */}
+      <aside
+        className={cn(
+          "fixed md:relative z-50 h-full bg-card border-r border-border transition-transform duration-300 ease-in-out",
+          "w-64 flex flex-col",
+          isOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0 md:w-0 md:border-0 md:overflow-hidden"
+        )}
+      >
+        {/* Header */}
+        <div className="p-3 border-b border-border">
+          <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2">
               <Sparkles className="text-foreground" size={20} />
-              <span className="font-semibold text-foreground">Xlnk AI</span>
+              <span className="font-semibold text-foreground">Chats</span>
             </div>
-          )}
-          <SidebarTrigger className="ml-auto" />
-        </div>
-        
-        <Button
-          onClick={onNewConversation}
-          variant="secondary"
-          size={collapsed ? "icon" : "default"}
-          className="w-full mt-3"
-        >
-          <Plus size={18} />
-          {!collapsed && <span className="ml-2">New Chat</span>}
-        </Button>
-      </SidebarHeader>
+            <button
+              onClick={onClose}
+              className="p-1 hover:bg-accent rounded transition-colors md:hidden"
+            >
+              <X size={18} className="text-muted-foreground" />
+            </button>
+          </div>
 
-      <SidebarContent className="p-2">
-        <ScrollArea className="h-[calc(100vh-140px)]">
-          <SidebarMenu>
+          <Button
+            onClick={() => {
+              onNewConversation();
+              onClose();
+            }}
+            variant="secondary"
+            className="w-full"
+          >
+            <Plus size={18} />
+            <span className="ml-2">New Chat</span>
+          </Button>
+        </div>
+
+        {/* Conversations List */}
+        <ScrollArea className="flex-1">
+          <div className="p-2 space-y-1">
             {conversations.map((conversation) => (
-              <SidebarMenuItem key={conversation.id}>
-                <SidebarMenuButton
-                  onClick={() => onSelectConversation(conversation.id)}
-                  className={cn(
-                    "w-full justify-start group",
-                    activeConversationId === conversation.id && "bg-accent"
-                  )}
+              <button
+                key={conversation.id}
+                onClick={() => handleSelectConversation(conversation.id)}
+                className={cn(
+                  "w-full flex items-center gap-2 px-3 py-2 rounded-lg text-left transition-colors group",
+                  activeConversationId === conversation.id
+                    ? "bg-accent text-accent-foreground"
+                    : "hover:bg-accent/50 text-foreground"
+                )}
+              >
+                <MessageSquare size={16} className="shrink-0" />
+                <span className="truncate flex-1 text-sm">
+                  {conversation.title}
+                </span>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onDeleteConversation(conversation.id);
+                  }}
+                  className="opacity-0 group-hover:opacity-100 p-1 hover:bg-destructive/20 rounded transition-opacity"
                 >
-                  <MessageSquare size={16} className="shrink-0" />
-                  {!collapsed && (
-                    <>
-                      <span className="truncate flex-1 text-left text-sm">
-                        {conversation.title}
-                      </span>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onDeleteConversation(conversation.id);
-                        }}
-                        className="opacity-0 group-hover:opacity-100 p-1 hover:bg-destructive/20 rounded transition-opacity"
-                      >
-                        <Trash2 size={14} className="text-destructive" />
-                      </button>
-                    </>
-                  )}
-                </SidebarMenuButton>
-              </SidebarMenuItem>
+                  <Trash2 size={14} className="text-destructive" />
+                </button>
+              </button>
             ))}
-          </SidebarMenu>
+
+            {conversations.length === 0 && (
+              <p className="text-center text-muted-foreground text-sm py-8">
+                No conversations yet
+              </p>
+            )}
+          </div>
         </ScrollArea>
-      </SidebarContent>
-    </Sidebar>
+      </aside>
+    </>
   );
 };
 
