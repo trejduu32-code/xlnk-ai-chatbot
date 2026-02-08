@@ -1,9 +1,9 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import ChatInput from "@/components/ChatInput";
 import ChatMessage from "@/components/ChatMessage";
 import ChatSidebar from "@/components/ChatSidebar";
 import { Sparkles, Menu } from "lucide-react";
-import { useConversations } from "@/hooks/useConversations";
+import { useConversations, Message } from "@/hooks/useConversations";
 
 const models = [
   { value: "https://xlnk-350m.hf.space/v1/chat/completions", label: "350M" },
@@ -23,19 +23,20 @@ const Index = () => {
   } = useConversations();
 
   const [isLoading, setIsLoading] = useState(false);
+  const [streamingContent, setStreamingContent] = useState("");
   const [selectedModel, setSelectedModel] = useState("https://xlnk-ai.hf.space/v1/chat/completions");
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const messages = activeConversation?.messages || [];
 
-  const scrollToBottom = () => {
+  const scrollToBottom = useCallback(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  };
+  }, []);
 
   useEffect(() => {
     scrollToBottom();
-  }, [messages]);
+  }, [messages, streamingContent, scrollToBottom]);
 
   const handleSend = async (message: string, files?: File[]) => {
     let conversationId = activeConversationId;
@@ -54,6 +55,7 @@ const Index = () => {
 
     addMessage(conversationId, { role: "user", content: fullMessage });
     setIsLoading(true);
+    setStreamingContent("");
 
     try {
       const allMessages = [...messages, { role: "user" as const, content: fullMessage }];
@@ -69,7 +71,7 @@ const Index = () => {
             content: m.content,
           })),
           max_tokens: 512,
-          stream: false,
+          stream: true,
         }),
       });
 
@@ -77,18 +79,81 @@ const Index = () => {
         throw new Error("Failed to get response");
       }
 
-      const data = await response.json();
-      const assistantContent = data.choices?.[0]?.message?.content || "Sorry, I couldn't generate a response.";
+      // Check if streaming is supported
+      if (response.headers.get("content-type")?.includes("text/event-stream") || response.body) {
+        const reader = response.body?.getReader();
+        const decoder = new TextDecoder();
+        let accumulatedContent = "";
 
-      addMessage(conversationId, { role: "assistant", content: assistantContent });
+        if (reader) {
+          try {
+            while (true) {
+              const { done, value } = await reader.read();
+              if (done) break;
+
+              const chunk = decoder.decode(value, { stream: true });
+              const lines = chunk.split("\n");
+
+              for (const line of lines) {
+                if (line.startsWith("data: ")) {
+                  const data = line.slice(6).trim();
+                  if (data === "[DONE]") continue;
+
+                  try {
+                    const parsed = JSON.parse(data);
+                    const delta = parsed.choices?.[0]?.delta?.content || "";
+                    if (delta) {
+                      accumulatedContent += delta;
+                      setStreamingContent(accumulatedContent);
+                    }
+                  } catch {
+                    // If it's not JSON, it might be the full response
+                    if (data && !data.startsWith("{")) {
+                      accumulatedContent += data;
+                      setStreamingContent(accumulatedContent);
+                    }
+                  }
+                }
+              }
+            }
+          } finally {
+            reader.releaseLock();
+          }
+
+          // If we got streaming content, add it as the final message
+          if (accumulatedContent) {
+            addMessage(conversationId, { role: "assistant", content: accumulatedContent });
+          }
+        }
+      } else {
+        // Fallback to non-streaming response
+        const data = await response.json();
+        const assistantContent = data.choices?.[0]?.message?.content || "Sorry, I couldn't generate a response.";
+        
+        // Simulate streaming effect for non-streaming responses
+        const words = assistantContent.split(" ");
+        let currentContent = "";
+        
+        for (let i = 0; i < words.length; i++) {
+          currentContent += (i === 0 ? "" : " ") + words[i];
+          setStreamingContent(currentContent);
+          await new Promise(resolve => setTimeout(resolve, 30));
+        }
+        
+        addMessage(conversationId, { role: "assistant", content: assistantContent });
+      }
     } catch (error) {
       console.error("Error:", error);
       addMessage(conversationId, { role: "assistant", content: "Sorry, something went wrong. Please try again." });
     } finally {
       setIsLoading(false);
+      setStreamingContent("");
     }
   };
 
+  // Combine messages with streaming content for display
+  const displayMessages = [...messages];
+  
   return (
     <div className="min-h-screen bg-background flex w-full">
       <ChatSidebar
@@ -108,6 +173,7 @@ const Index = () => {
             <button
               onClick={() => setSidebarOpen(true)}
               className="p-2 hover:bg-accent rounded-lg transition-colors"
+              aria-label="Open chat history"
             >
               <Menu size={20} className="text-foreground" />
             </button>
@@ -133,7 +199,7 @@ const Index = () => {
 
         {/* Chat Area */}
         <main className="flex-1 flex flex-col overflow-hidden relative">
-          {messages.length === 0 ? (
+          {displayMessages.length === 0 && !streamingContent ? (
             /* Empty State */
             <div className="flex-1 flex flex-col items-center justify-center px-4 pb-32">
               <div className="text-center">
@@ -151,10 +217,17 @@ const Index = () => {
           ) : (
             /* Chat Messages */
             <div className="flex-1 overflow-y-auto px-4 py-6 pb-32 space-y-4 scrollbar-thin">
-              {messages.map((msg, idx) => (
+              {displayMessages.map((msg, idx) => (
                 <ChatMessage key={idx} role={msg.role} content={msg.content} />
               ))}
-              {isLoading && (
+              
+              {/* Streaming message */}
+              {streamingContent && (
+                <ChatMessage role="assistant" content={streamingContent} />
+              )}
+              
+              {/* Loading indicator when waiting for stream to start */}
+              {isLoading && !streamingContent && (
                 <div className="flex gap-3">
                   <div className="w-8 h-8 rounded-full bg-secondary flex items-center justify-center shrink-0">
                     <Sparkles size={18} className="text-foreground animate-pulse" />
