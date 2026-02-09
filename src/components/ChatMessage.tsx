@@ -5,9 +5,10 @@ import MarkdownRenderer from "./MarkdownRenderer";
 interface ChatMessageProps {
   role: "user" | "assistant";
   content: string;
+  isStreaming?: boolean;
 }
 
-const ChatMessage = ({ role, content }: ChatMessageProps) => {
+const ChatMessage = ({ role, content, isStreaming }: ChatMessageProps) => {
   const isUser = role === "user";
 
   return (
@@ -20,16 +21,21 @@ const ChatMessage = ({ role, content }: ChatMessageProps) => {
       
       <div
         className={cn(
-          "max-w-[80%] px-4 py-3 rounded-2xl text-sm leading-relaxed",
+          "max-w-[80%] px-4 py-3 rounded-2xl text-sm leading-relaxed overflow-hidden break-words",
           isUser
             ? "bg-secondary text-foreground rounded-br-sm"
             : "bg-muted text-foreground rounded-bl-sm"
         )}
       >
         {isUser ? (
-          <p className="whitespace-pre-wrap">{content}</p>
+          <p className="whitespace-pre-wrap break-words">{content}</p>
         ) : (
-          <MarkdownRenderer content={content} />
+          <div className="overflow-x-auto">
+            <MarkdownRenderer content={content} />
+            {isStreaming && (
+              <span className="inline-block w-2 h-4 bg-foreground/70 animate-pulse ml-0.5 align-middle rounded-sm" />
+            )}
+          </div>
         )}
       </div>
 
