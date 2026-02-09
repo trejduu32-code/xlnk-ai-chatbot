@@ -1,12 +1,14 @@
 import { useState, useRef } from "react";
-import { Paperclip, Send } from "lucide-react";
+import { Paperclip, Send, Square } from "lucide-react";
 
 interface ChatInputProps {
   onSend?: (message: string, files?: File[]) => void;
+  onStop?: () => void;
   disabled?: boolean;
+  isLoading?: boolean;
 }
 
-const ChatInput = ({ onSend, disabled }: ChatInputProps) => {
+const ChatInput = ({ onSend, onStop, disabled, isLoading }: ChatInputProps) => {
   const [message, setMessage] = useState("");
   const [attachedFiles, setAttachedFiles] = useState<File[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -107,17 +109,30 @@ const ChatInput = ({ onSend, disabled }: ChatInputProps) => {
               </button>
             </div>
 
-            {/* Submit Button */}
-            <button
-              type="button"
-              onClick={handleSubmit}
-              disabled={disabled || (!message.trim() && attachedFiles.length === 0)}
-              className="submit-button flex p-0.5 submit-button-gradient rounded-[10px] cursor-pointer border-none outline-none transition-all duration-150 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              <span className="w-[30px] h-[30px] p-1.5 bg-black/10 rounded-[10px] backdrop-blur-sm flex items-center justify-center">
-                <Send size={18} className="submit-icon" />
-              </span>
-            </button>
+            {/* Submit / Stop Button */}
+            {isLoading ? (
+              <button
+                type="button"
+                onClick={onStop}
+                className="submit-button flex p-0.5 submit-button-gradient rounded-[10px] cursor-pointer border-none outline-none transition-all duration-150"
+                title="Stop generating"
+              >
+                <span className="w-[30px] h-[30px] p-1.5 bg-black/10 rounded-[10px] backdrop-blur-sm flex items-center justify-center">
+                  <Square size={14} className="submit-icon fill-current" />
+                </span>
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={handleSubmit}
+                disabled={disabled || (!message.trim() && attachedFiles.length === 0)}
+                className="submit-button flex p-0.5 submit-button-gradient rounded-[10px] cursor-pointer border-none outline-none transition-all duration-150 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <span className="w-[30px] h-[30px] p-1.5 bg-black/10 rounded-[10px] backdrop-blur-sm flex items-center justify-center">
+                  <Send size={18} className="submit-icon" />
+                </span>
+              </button>
+            )}
           </div>
         </div>
       </div>
