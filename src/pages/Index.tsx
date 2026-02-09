@@ -2,7 +2,7 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import ChatInput from "@/components/ChatInput";
 import ChatMessage from "@/components/ChatMessage";
 import ChatSidebar from "@/components/ChatSidebar";
-import { Sparkles, Menu } from "lucide-react";
+import { Sparkles, Menu, Square } from "lucide-react";
 import { useConversations, Message } from "@/hooks/useConversations";
 import { readAllFiles } from "@/utils/fileReader";
 
@@ -28,6 +28,7 @@ const Index = () => {
   const [selectedModel, setSelectedModel] = useState("https://xlnk-ai.hf.space/v1/chat/completions");
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   const messages = activeConversation?.messages || [];
 
@@ -63,6 +64,9 @@ const Index = () => {
     try {
       const allMessages = [...messages, { role: "user" as const, content: fullMessage }];
 
+      const controller = new AbortController();
+      abortControllerRef.current = controller;
+
       const response = await fetch(selectedModel, {
         method: "POST",
         headers: {
@@ -73,9 +77,10 @@ const Index = () => {
             role: m.role,
             content: m.content,
           })),
-          max_tokens: 512,
+          max_tokens: -1,
           stream: true,
         }),
+        signal: controller.signal,
       });
 
       if (!response.ok) {
@@ -145,13 +150,25 @@ const Index = () => {
         
         addMessage(conversationId, { role: "assistant", content: assistantContent });
       }
-    } catch (error) {
-      console.error("Error:", error);
-      addMessage(conversationId, { role: "assistant", content: "Sorry, something went wrong. Please try again." });
+    } catch (error: any) {
+      if (error?.name === "AbortError") {
+        // User stopped generation — save what we have
+        if (streamingContent) {
+          addMessage(conversationId, { role: "assistant", content: streamingContent });
+        }
+      } else {
+        console.error("Error:", error);
+        addMessage(conversationId, { role: "assistant", content: "Sorry, something went wrong. Please try again." });
+      }
     } finally {
+      abortControllerRef.current = null;
       setIsLoading(false);
       setStreamingContent("");
     }
+  };
+
+  const handleStop = () => {
+    abortControllerRef.current?.abort();
   };
 
   // Combine messages with streaming content for display
@@ -249,7 +266,16 @@ const Index = () => {
           )}
 
           {/* Floating Input */}
-          <div className="absolute bottom-0 left-0 right-0 pb-6 pt-4 flex justify-center bg-gradient-to-t from-background via-background to-transparent">
+          <div className="absolute bottom-0 left-0 right-0 pb-6 pt-4 flex flex-col items-center gap-2 bg-gradient-to-t from-background via-background to-transparent">
+            {isLoading && (
+              <button
+                onClick={handleStop}
+                className="flex items-center gap-2 px-4 py-2 rounded-full bg-secondary hover:bg-accent border border-border text-sm text-foreground transition-colors"
+              >
+                <Square size={14} className="fill-foreground" />
+                Stop generating
+              </button>
+            )}
             <ChatInput
               onSend={handleSend}
               disabled={isLoading}
