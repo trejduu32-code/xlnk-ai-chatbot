@@ -4,6 +4,7 @@ import ChatMessage from "@/components/ChatMessage";
 import ChatSidebar from "@/components/ChatSidebar";
 import { Sparkles, Menu } from "lucide-react";
 import { useConversations, Message } from "@/hooks/useConversations";
+import { readAllFiles } from "@/utils/fileReader";
 
 const models = [
   { value: "https://xlnk-350m.hf.space/v1/chat/completions", label: "350M" },
@@ -46,11 +47,13 @@ const Index = () => {
       conversationId = createConversation();
     }
 
-    // Build message content with file info
+    // Build message content with file contents
     let fullMessage = message;
     if (files && files.length > 0) {
-      const fileNames = files.map(f => f.name).join(", ");
-      fullMessage = message ? `${message}\n\n[Attached files: ${fileNames}]` : `[Attached files: ${fileNames}]`;
+      const fileContents = await readAllFiles(files);
+      fullMessage = message
+        ? `${message}\n\nFile contents:\n${fileContents}`
+        : `Here are the file contents:\n${fileContents}`;
     }
 
     addMessage(conversationId, { role: "user", content: fullMessage });
@@ -155,7 +158,7 @@ const Index = () => {
   const displayMessages = [...messages];
   
   return (
-    <div className="min-h-screen bg-background flex w-full">
+    <div className="h-screen bg-background flex w-full overflow-hidden">
       <ChatSidebar
         conversations={conversations}
         activeConversationId={activeConversationId}
@@ -166,7 +169,7 @@ const Index = () => {
         onClose={() => setSidebarOpen(false)}
       />
 
-      <div className="flex-1 flex flex-col min-h-screen">
+      <div className="flex-1 flex flex-col h-screen overflow-hidden">
         {/* Header */}
         <header className="border-b border-border py-3 px-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
