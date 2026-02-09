@@ -226,7 +226,7 @@ const Index = () => {
               
               {/* Streaming message */}
               {streamingContent && (
-                <ChatMessage role="assistant" content={streamingContent} />
+                <ChatMessage role="assistant" content={streamingContent} isStreaming />
               )}
               
               {/* Loading indicator when waiting for stream to start */}
