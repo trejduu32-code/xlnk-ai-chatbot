@@ -197,4 +197,13 @@
     background: hsl(var(--foreground) / 0.5);
     cursor: pointer;
   }
+
+  @keyframes blink {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0; }
+  }
+
+  .animate-blink {
+    animation: blink 0.8s step-end infinite;
+  }
 }
