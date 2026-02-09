@@ -8,11 +8,15 @@ interface ChatMessageProps {
   isStreaming?: boolean;
 }
 
+const TypingCursor = () => (
+  <span className="inline-block w-[3px] h-[1.1em] bg-foreground/80 rounded-full align-middle ml-0.5 animate-blink" />
+);
+
 const ChatMessage = ({ role, content, isStreaming }: ChatMessageProps) => {
   const isUser = role === "user";
 
   return (
-    <div className={cn("flex gap-3 w-full", isUser ? "justify-end" : "justify-start")}>
+    <div className={cn("flex gap-3 w-full animate-fade-in", isUser ? "justify-end" : "justify-start")}>
       {!isUser && (
         <div className="w-8 h-8 rounded-full bg-secondary flex items-center justify-center shrink-0">
           <Bot size={18} className="text-foreground" />
@@ -32,9 +36,7 @@ const ChatMessage = ({ role, content, isStreaming }: ChatMessageProps) => {
         ) : (
           <div className="overflow-x-auto">
             <MarkdownRenderer content={content} />
-            {isStreaming && (
-              <span className="inline-block w-2 h-4 bg-foreground/70 animate-pulse ml-0.5 align-middle rounded-sm" />
-            )}
+            {isStreaming && <TypingCursor />}
           </div>
         )}
       </div>
