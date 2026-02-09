@@ -102,6 +102,17 @@ export const useConversations = () => {
     }));
   }, []);
 
+  const removeLastMessage = useCallback((conversationId: string) => {
+    setConversations(prev => prev.map(c => {
+      if (c.id !== conversationId) return c;
+      return {
+        ...c,
+        messages: c.messages.slice(0, -1),
+        updatedAt: Date.now(),
+      };
+    }));
+  }, []);
+
   return {
     conversations,
     activeConversation,
@@ -111,5 +122,6 @@ export const useConversations = () => {
     deleteConversation,
     addMessage,
     clearConversation,
+    removeLastMessage,
   };
 };

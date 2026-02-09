@@ -2,7 +2,7 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import ChatInput from "@/components/ChatInput";
 import ChatMessage from "@/components/ChatMessage";
 import ChatSidebar from "@/components/ChatSidebar";
-import { Sparkles, Menu, Square } from "lucide-react";
+import { Sparkles, Menu, RefreshCw } from "lucide-react";
 import { useConversations, Message } from "@/hooks/useConversations";
 import { readAllFiles } from "@/utils/fileReader";
 
@@ -21,6 +21,7 @@ const Index = () => {
     createConversation,
     deleteConversation,
     addMessage,
+    removeLastMessage,
   } = useConversations();
 
   const [isLoading, setIsLoading] = useState(false);
@@ -171,6 +172,18 @@ const Index = () => {
     abortControllerRef.current?.abort();
   };
 
+  const handleRegenerate = () => {
+    if (!activeConversationId || messages.length < 2) return;
+    // Remove last assistant message, then re-send the last user message
+    const lastUserMsg = [...messages].reverse().find(m => m.role === "user");
+    if (!lastUserMsg) return;
+    removeLastMessage(activeConversationId);
+    // Small delay to let state update
+    setTimeout(() => {
+      handleSend(lastUserMsg.content);
+    }, 50);
+  };
+
   // Combine messages with streaming content for display
   const displayMessages = [...messages];
   
@@ -240,6 +253,19 @@ const Index = () => {
               {displayMessages.map((msg, idx) => (
                 <ChatMessage key={idx} role={msg.role} content={msg.content} />
               ))}
+
+              {/* Regenerate button after last assistant message */}
+              {!isLoading && displayMessages.length > 0 && displayMessages[displayMessages.length - 1]?.role === "assistant" && (
+                <div className="flex justify-center">
+                  <button
+                    onClick={handleRegenerate}
+                    className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-secondary hover:bg-accent border border-border text-xs text-muted-foreground hover:text-foreground transition-colors"
+                  >
+                    <RefreshCw size={12} />
+                    Regenerate response
+                  </button>
+                </div>
+              )}
               
               {/* Streaming message */}
               {streamingContent && (
@@ -266,19 +292,12 @@ const Index = () => {
           )}
 
           {/* Floating Input */}
-          <div className="absolute bottom-0 left-0 right-0 pb-6 pt-4 flex flex-col items-center gap-2 bg-gradient-to-t from-background via-background to-transparent">
-            {isLoading && (
-              <button
-                onClick={handleStop}
-                className="flex items-center gap-2 px-4 py-2 rounded-full bg-secondary hover:bg-accent border border-border text-sm text-foreground transition-colors"
-              >
-                <Square size={14} className="fill-foreground" />
-                Stop generating
-              </button>
-            )}
+          <div className="absolute bottom-0 left-0 right-0 pb-6 pt-4 flex justify-center bg-gradient-to-t from-background via-background to-transparent">
             <ChatInput
               onSend={handleSend}
+              onStop={handleStop}
               disabled={isLoading}
+              isLoading={isLoading}
             />
           </div>
         </main>
