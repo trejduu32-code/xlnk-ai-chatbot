@@ -35,11 +35,7 @@ const ChatInput = ({ onSend, onStop, disabled, isLoading }: ChatInputProps) => {
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (files) {
-      const validFiles = Array.from(files).filter(file => {
-        const ext = file.name.toLowerCase();
-        return ext.endsWith('.txt') || ext.endsWith('.pdf');
-      });
-      setAttachedFiles(prev => [...prev, ...validFiles]);
+      setAttachedFiles(prev => [...prev, ...Array.from(files)]);
     }
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
@@ -51,7 +47,7 @@ const ChatInput = ({ onSend, onStop, disabled, isLoading }: ChatInputProps) => {
   };
 
   return (
-    <div className="flex flex-col w-full max-w-2xl px-4">
+    <div className="flex flex-col w-full max-w-2xl px-2 sm:px-4">
       {/* Attached Files Preview */}
       {attachedFiles.length > 0 && (
         <div className="mb-2 flex flex-wrap gap-2">
@@ -95,7 +91,7 @@ const ChatInput = ({ onSend, onStop, disabled, isLoading }: ChatInputProps) => {
                 type="file"
                 ref={fileInputRef}
                 onChange={handleFileChange}
-                accept=".txt,.pdf"
+                accept="*/*"
                 multiple
                 className="hidden"
               />
@@ -103,7 +99,7 @@ const ChatInput = ({ onSend, onStop, disabled, isLoading }: ChatInputProps) => {
                 type="button"
                 onClick={handleFileClick}
                 className="flex bg-transparent border-none cursor-pointer icon-button"
-                title="Attach TXT or PDF files"
+                title="Attach files"
               >
                 <Paperclip size={20} />
               </button>

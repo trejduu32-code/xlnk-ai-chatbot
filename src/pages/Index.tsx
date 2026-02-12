@@ -2,7 +2,7 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import ChatInput from "@/components/ChatInput";
 import ChatMessage from "@/components/ChatMessage";
 import ChatSidebar from "@/components/ChatSidebar";
-import { Sparkles, Menu, RefreshCw } from "lucide-react";
+import { Sparkles, Menu, RefreshCw, Search } from "lucide-react";
 import { useConversations, Message } from "@/hooks/useConversations";
 import { readAllFiles } from "@/utils/fileReader";
 
@@ -10,6 +10,7 @@ const models = [
   { value: "https://xlnk-350m.hf.space/v1/chat/completions", label: "350M" },
   { value: "https://xlnk-ai.hf.space/v1/chat/completions", label: "700M" },
   { value: "https://xlnk-corelm.hf.space/v1/chat/completions", label: "1B" },
+  { value: "https://xlnk-ai-corelm.hf.space/v1/chat/completions", label: "CoreLM" },
 ];
 
 const Index = () => {
@@ -28,6 +29,7 @@ const Index = () => {
   const [streamingContent, setStreamingContent] = useState("");
   const [selectedModel, setSelectedModel] = useState("https://xlnk-ai.hf.space/v1/chat/completions");
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [webSearchEnabled, setWebSearchEnabled] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
 
@@ -63,7 +65,27 @@ const Index = () => {
     setStreamingContent("");
 
     try {
-      const allMessages = [...messages, { role: "user" as const, content: fullMessage }];
+      let contextMessage = fullMessage;
+
+      // Web search if enabled
+      if (webSearchEnabled) {
+        try {
+          const searchRes = await fetch(`https://xlnk-search.hf.space/search?q=${encodeURIComponent(message)}`);
+          if (searchRes.ok) {
+            const searchData = await searchRes.json();
+            const searchContext = Array.isArray(searchData)
+              ? searchData.slice(0, 5).map((r: any) => `- ${r.title || ''}: ${r.snippet || r.description || r.content || ''} (${r.url || r.link || ''})`).join('\n')
+              : typeof searchData === 'object' && searchData.results
+                ? searchData.results.slice(0, 5).map((r: any) => `- ${r.title || ''}: ${r.snippet || r.description || r.content || ''} (${r.url || r.link || ''})`).join('\n')
+                : JSON.stringify(searchData).substring(0, 2000);
+            contextMessage = `Web search results for "${message}":\n${searchContext}\n\nUser question: ${fullMessage}\n\nPlease answer based on the search results above.`;
+          }
+        } catch (e) {
+          console.error("Web search error:", e);
+        }
+      }
+
+      const allMessages = [...messages, { role: "user" as const, content: contextMessage }];
 
       const controller = new AbortController();
       abortControllerRef.current = controller;
@@ -216,18 +238,29 @@ const Index = () => {
             </div>
           </div>
 
-          {/* Model Selector */}
-          <select
-            value={selectedModel}
-            onChange={(e) => setSelectedModel(e.target.value)}
-            className="bg-secondary text-foreground text-sm px-3 py-1.5 rounded-lg border border-border outline-none focus:ring-1 focus:ring-ring transition-all cursor-pointer"
-          >
-            {models.map((model) => (
-              <option key={model.value} value={model.value} className="bg-popover">
-                {model.label}
-              </option>
-            ))}
-          </select>
+          <div className="flex items-center gap-2">
+            {/* Web Search Toggle */}
+            <button
+              onClick={() => setWebSearchEnabled(!webSearchEnabled)}
+              className={`p-2 rounded-lg transition-colors ${webSearchEnabled ? 'bg-primary text-primary-foreground' : 'hover:bg-accent text-muted-foreground'}`}
+              title={webSearchEnabled ? "Web search on" : "Web search off"}
+            >
+              <Search size={18} />
+            </button>
+
+            {/* Model Selector */}
+            <select
+              value={selectedModel}
+              onChange={(e) => setSelectedModel(e.target.value)}
+              className="bg-secondary text-foreground text-xs sm:text-sm px-2 sm:px-3 py-1.5 rounded-lg border border-border outline-none focus:ring-1 focus:ring-ring transition-all cursor-pointer max-w-[100px] sm:max-w-none"
+            >
+              {models.map((model) => (
+                <option key={model.value} value={model.value} className="bg-popover">
+                  {model.label}
+                </option>
+              ))}
+            </select>
+          </div>
         </header>
 
         {/* Chat Area */}
