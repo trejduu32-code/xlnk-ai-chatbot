@@ -11,8 +11,6 @@ export default defineConfig(({ mode }) => ({
     hmr: {
       overlay: false,
     },
-    // Allow xlnk-ai.onrender.com to access your dev server
-    allowedHosts: ["xlnk-ai.onrender.com"],
   },
   plugins: [react(), mode === "development" && componentTagger()].filter(Boolean),
   resolve: {
