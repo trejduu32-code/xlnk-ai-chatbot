@@ -6,6 +6,7 @@ import CalculatorCard, { tryCalculate } from "@/components/CalculatorCard";
 import { Sparkles, Menu, RefreshCw } from "lucide-react";
 import { useConversations, Message } from "@/hooks/useConversations";
 import { readAllFiles } from "@/utils/fileReader";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 const models = [
   { value: "https://xlnk-350m.hf.space/v1/chat/completions", label: "350M" },
@@ -35,10 +36,22 @@ const Index = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [streamingContent, setStreamingContent] = useState("");
   const [selectedModel, setSelectedModel] = useState("https://xlnk-ai.hf.space/v1/chat/completions");
-  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const isMobile = useIsMobile();
+  const [sidebarOpen, setSidebarOpen] = useState(!isMobile);
   const [calcResults, setCalcResults] = useState<CalcResult[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
+  const streamingContentRef = useRef("");
+
+  // Keep ref in sync
+  useEffect(() => {
+    streamingContentRef.current = streamingContent;
+  }, [streamingContent]);
+
+  // Open sidebar by default on desktop
+  useEffect(() => {
+    setSidebarOpen(!isMobile);
+  }, [isMobile]);
 
   const messages = activeConversation?.messages || [];
 
@@ -168,10 +181,8 @@ const Index = () => {
       }
     } catch (error: any) {
       if (error?.name === "AbortError") {
-        // User stopped generation — save what we have
-        if (streamingContent) {
-          addMessage(conversationId, { role: "assistant", content: streamingContent });
-        }
+        // User stopped generation — save what we have (streamingContent may not be updated yet)
+        // We use a ref-based approach below
       } else {
         console.error("Error:", error);
         addMessage(conversationId, { role: "assistant", content: "Sorry, something went wrong. Please try again." });
@@ -184,6 +195,13 @@ const Index = () => {
   };
 
   const handleStop = () => {
+    // Save current streamed content before aborting
+    const currentContent = streamingContentRef.current;
+    if (currentContent && activeConversationId) {
+      addMessage(activeConversationId, { role: "assistant", content: currentContent });
+      setStreamingContent("");
+      setIsLoading(false);
+    }
     abortControllerRef.current?.abort();
   };
 
@@ -212,9 +230,10 @@ const Index = () => {
         onDeleteConversation={deleteConversation}
         isOpen={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
+        persistOnDesktop={!isMobile}
       />
 
-      <div className="flex-1 flex flex-col h-screen overflow-hidden">
+      <div className={`flex-1 flex flex-col h-screen overflow-hidden transition-all duration-300 ${!isMobile && sidebarOpen ? 'ml-72' : ''}`}>
         {/* Header */}
         <header className="border-b border-border py-3 px-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -231,14 +250,14 @@ const Index = () => {
             </div>
           </div>
 
-          {/* Model Selector */}
+          {/* Liquid Glass Model Selector */}
           <select
             value={selectedModel}
             onChange={(e) => setSelectedModel(e.target.value)}
-            className="bg-secondary text-foreground text-xs sm:text-sm px-2 sm:px-3 py-1.5 rounded-lg border border-border outline-none focus:ring-1 focus:ring-ring transition-all cursor-pointer max-w-[100px] sm:max-w-none"
+            className="text-foreground text-xs sm:text-sm px-3 sm:px-4 py-2 rounded-2xl border border-white/15 outline-none focus:ring-1 focus:ring-white/30 transition-all duration-300 cursor-pointer max-w-[110px] sm:max-w-none backdrop-blur-xl bg-white/5 shadow-[inset_0_1px_1px_rgba(255,255,255,0.1),0_4px_24px_rgba(0,0,0,0.3)] hover:bg-white/10 hover:border-white/25 hover:shadow-[inset_0_1px_1px_rgba(255,255,255,0.15),0_8px_32px_rgba(0,0,0,0.4)]"
           >
             {models.map((model) => (
-              <option key={model.value} value={model.value} className="bg-popover">
+              <option key={model.value} value={model.value} className="bg-popover text-foreground">
                 {model.label}
               </option>
             ))}

@@ -13,6 +13,7 @@ interface ChatSidebarProps {
   onDeleteConversation: (id: string) => void;
   isOpen: boolean;
   onClose: () => void;
+  persistOnDesktop?: boolean;
 }
 
 const ChatSidebar = ({
@@ -23,16 +24,21 @@ const ChatSidebar = ({
   onDeleteConversation,
   isOpen,
   onClose,
+  persistOnDesktop = false,
 }: ChatSidebarProps) => {
   const sidebarRef = useRef<HTMLElement>(null);
 
   const handleSelectConversation = (id: string) => {
     onSelectConversation(id);
-    onClose();
+    if (!persistOnDesktop) {
+      onClose();
+    }
   };
 
-  // Handle click outside
+  // Handle click outside (only for mobile/overlay mode)
   useEffect(() => {
+    if (persistOnDesktop) return;
+
     const handleClickOutside = (event: MouseEvent) => {
       if (
         isOpen &&
@@ -43,7 +49,6 @@ const ChatSidebar = ({
       }
     };
 
-    // Handle escape key
     const handleEscapeKey = (event: KeyboardEvent) => {
       if (event.key === "Escape" && isOpen) {
         onClose();
@@ -51,7 +56,6 @@ const ChatSidebar = ({
     };
 
     if (isOpen) {
-      // Small delay to prevent immediate close on the same click that opened it
       const timer = setTimeout(() => {
         document.addEventListener("mousedown", handleClickOutside);
         document.addEventListener("keydown", handleEscapeKey);
@@ -63,12 +67,12 @@ const ChatSidebar = ({
         document.removeEventListener("keydown", handleEscapeKey);
       };
     }
-  }, [isOpen, onClose]);
+  }, [isOpen, onClose, persistOnDesktop]);
 
   return (
     <>
-      {/* Overlay for mobile */}
-      {isOpen && (
+      {/* Overlay for mobile only */}
+      {isOpen && !persistOnDesktop && (
         <div
           className="fixed inset-0 bg-black/60 z-40 backdrop-blur-sm transition-opacity"
           onClick={onClose}
@@ -104,7 +108,7 @@ const ChatSidebar = ({
           <Button
             onClick={() => {
               onNewConversation();
-              onClose();
+              if (!persistOnDesktop) onClose();
             }}
             variant="secondary"
             className="w-full"
