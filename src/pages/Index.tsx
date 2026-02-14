@@ -10,7 +10,12 @@ import { useConversations, Message } from "@/hooks/useConversations";
 import { readAllFiles } from "@/utils/fileReader";
 import { useIsMobile } from "@/hooks/use-mobile";
 
-const SEARCH_API = "https://xlnk-search.hf.space/search?q=";
+// Multiple search engines with fallback
+const SEARCH_ENGINES = [
+  { name: "SearXNG", url: "https://search.sapti.me/search?q={q}&format=json&categories=general" },
+  { name: "SearXNG2", url: "https://searx.tiekoetter.com/search?q={q}&format=json&categories=general" },
+  { name: "Xlnk", url: "https://xlnk-search.hf.space/search?q={q}" },
+];
 
 const models = [
   { value: "https://xlnk-350m.hf.space/v1/chat/completions", label: "350M" },
@@ -80,28 +85,34 @@ const Index = () => {
   };
 
   const fetchSearchResults = async (query: string): Promise<{ context: string; sources: SearchSource[] }> => {
-    try {
-      const res = await fetch(`${SEARCH_API}${encodeURIComponent(query)}`);
-      if (!res.ok) return { context: "", sources: [] };
-      const data = await res.json();
-      
-      const results = Array.isArray(data) ? data : data.results || data.data || [];
-      if (results.length === 0) return { context: "", sources: [] };
+    for (const engine of SEARCH_ENGINES) {
+      try {
+        const url = engine.url.replace("{q}", encodeURIComponent(query));
+        const res = await fetch(url, { signal: AbortSignal.timeout(5000) });
+        if (!res.ok) continue;
+        const data = await res.json();
 
-      const sources: SearchSource[] = results.slice(0, 5).map((r: any) => ({
-        title: r.title || r.name || "",
-        url: r.url || r.link || r.href || "",
-        snippet: r.snippet || r.description || r.text || "",
-      })).filter((s: SearchSource) => s.url);
+        const results = Array.isArray(data) ? data : data.results || data.data || [];
+        if (results.length === 0) continue;
 
-      const context = sources
-        .map((s, i) => `[${i + 1}] ${s.title}: ${s.snippet}`)
-        .join("\n");
+        const sources: SearchSource[] = results.slice(0, 5).map((r: any) => ({
+          title: r.title || r.name || "",
+          url: r.url || r.link || r.href || "",
+          snippet: r.snippet || r.content || r.description || r.text || "",
+        })).filter((s: SearchSource) => s.url);
 
-      return { context, sources };
-    } catch {
-      return { context: "", sources: [] };
+        if (sources.length === 0) continue;
+
+        const context = sources
+          .map((s, i) => `[${i + 1}] ${s.title}: ${s.snippet}`)
+          .join("\n");
+
+        return { context, sources };
+      } catch {
+        continue;
+      }
     }
+    return { context: "", sources: [] };
   };
 
   const handleSend = async (message: string, files?: File[]) => {
