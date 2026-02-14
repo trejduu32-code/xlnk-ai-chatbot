@@ -3,10 +3,14 @@ import ChatInput from "@/components/ChatInput";
 import ChatMessage from "@/components/ChatMessage";
 import ChatSidebar from "@/components/ChatSidebar";
 import CalculatorCard, { tryCalculate } from "@/components/CalculatorCard";
+import ModelDropdown from "@/components/ModelDropdown";
+import SearchSourcesCard, { SearchSource } from "@/components/SearchSourcesCard";
 import { Sparkles, Menu, RefreshCw } from "lucide-react";
 import { useConversations, Message } from "@/hooks/useConversations";
 import { readAllFiles } from "@/utils/fileReader";
 import { useIsMobile } from "@/hooks/use-mobile";
+
+const SEARCH_API = "https://xlnk-search.hf.space/search?q=";
 
 const models = [
   { value: "https://xlnk-350m.hf.space/v1/chat/completions", label: "350M" },
@@ -39,6 +43,7 @@ const Index = () => {
   const isMobile = useIsMobile();
   const [sidebarOpen, setSidebarOpen] = useState(!isMobile);
   const [calcResults, setCalcResults] = useState<CalcResult[]>([]);
+  const [searchSources, setSearchSources] = useState<Record<number, SearchSource[]>>({});
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
   const streamingContentRef = useRef("");
@@ -63,15 +68,49 @@ const Index = () => {
     scrollToBottom();
   }, [messages, streamingContent, scrollToBottom]);
 
+  // Determine if query needs web search (questions, current events, factual lookups)
+  const shouldSearch = (msg: string): boolean => {
+    const lower = msg.toLowerCase();
+    const searchPatterns = [
+      /^(what|who|when|where|why|how|which|is|are|was|were|do|does|did|can|could|will|would|should)\b/,
+      /\b(latest|current|recent|news|today|update|price|weather|score)\b/,
+      /\b(tell me about|explain|define|meaning of|info on|search for|look up|find)\b/,
+    ];
+    return searchPatterns.some(p => p.test(lower));
+  };
+
+  const fetchSearchResults = async (query: string): Promise<{ context: string; sources: SearchSource[] }> => {
+    try {
+      const res = await fetch(`${SEARCH_API}${encodeURIComponent(query)}`);
+      if (!res.ok) return { context: "", sources: [] };
+      const data = await res.json();
+      
+      const results = Array.isArray(data) ? data : data.results || data.data || [];
+      if (results.length === 0) return { context: "", sources: [] };
+
+      const sources: SearchSource[] = results.slice(0, 5).map((r: any) => ({
+        title: r.title || r.name || "",
+        url: r.url || r.link || r.href || "",
+        snippet: r.snippet || r.description || r.text || "",
+      })).filter((s: SearchSource) => s.url);
+
+      const context = sources
+        .map((s, i) => `[${i + 1}] ${s.title}: ${s.snippet}`)
+        .join("\n");
+
+      return { context, sources };
+    } catch {
+      return { context: "", sources: [] };
+    }
+  };
+
   const handleSend = async (message: string, files?: File[]) => {
     let conversationId = activeConversationId;
 
-    // Create new conversation if none exists
     if (!conversationId) {
       conversationId = createConversation();
     }
 
-    // Build message content with file contents
     let fullMessage = message;
     if (files && files.length > 0) {
       const fileContents = await readAllFiles(files);
@@ -91,7 +130,23 @@ const Index = () => {
         setCalcResults(prev => [...prev, { afterMessageIndex: messages.length, expression: calc.expression, result: calc.result }]);
       }
 
-      const allMessages = [...messages, { role: "user" as const, content: fullMessage }];
+      // Auto web search
+      let searchContext = "";
+      if (shouldSearch(message)) {
+        const { context, sources } = await fetchSearchResults(message);
+        searchContext = context;
+        if (sources.length > 0) {
+          // Store sources keyed by the assistant message index (which will be messages.length + 1)
+          const assistantIdx = messages.length + 1;
+          setSearchSources(prev => ({ ...prev, [assistantIdx]: sources }));
+        }
+      }
+
+      const promptMessage = searchContext
+        ? `Web search results:\n${searchContext}\n\nUser question: ${fullMessage}\n\nUse the search results above to help answer. Cite sources when relevant.`
+        : fullMessage;
+
+      const allMessages = [...messages, { role: "user" as const, content: promptMessage }];
 
       const controller = new AbortController();
       abortControllerRef.current = controller;
@@ -250,18 +305,11 @@ const Index = () => {
             </div>
           </div>
 
-          {/* Liquid Glass Model Selector */}
-          <select
-            value={selectedModel}
-            onChange={(e) => setSelectedModel(e.target.value)}
-            className="text-foreground text-xs sm:text-sm px-3 sm:px-4 py-2 rounded-2xl border border-white/15 outline-none focus:ring-1 focus:ring-white/30 transition-all duration-300 cursor-pointer max-w-[110px] sm:max-w-none backdrop-blur-xl bg-white/5 shadow-[inset_0_1px_1px_rgba(255,255,255,0.1),0_4px_24px_rgba(0,0,0,0.3)] hover:bg-white/10 hover:border-white/25 hover:shadow-[inset_0_1px_1px_rgba(255,255,255,0.15),0_8px_32px_rgba(0,0,0,0.4)]"
-          >
-            {models.map((model) => (
-              <option key={model.value} value={model.value} className="bg-popover text-foreground">
-                {model.label}
-              </option>
-            ))}
-          </select>
+          <ModelDropdown
+            models={models}
+            selected={selectedModel}
+            onSelect={setSelectedModel}
+          />
         </header>
 
         {/* Chat Area */}
@@ -294,6 +342,12 @@ const Index = () => {
                         expression={calcResults.find(c => c.afterMessageIndex === idx)!.expression}
                         result={calcResults.find(c => c.afterMessageIndex === idx)!.result}
                       />
+                    </div>
+                  )}
+                  {/* Show search sources after assistant message */}
+                  {msg.role === "assistant" && searchSources[idx] && (
+                    <div className="mt-1 ml-0 sm:ml-11">
+                      <SearchSourcesCard sources={searchSources[idx]} />
                     </div>
                   )}
                 </div>
