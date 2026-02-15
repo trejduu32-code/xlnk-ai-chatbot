@@ -73,15 +73,16 @@ const Index = () => {
     scrollToBottom();
   }, [messages, streamingContent, scrollToBottom]);
 
-  // Determine if query needs web search (questions, current events, factual lookups)
+  // Determine if query needs web search - searches for most queries to give AI better context
   const shouldSearch = (msg: string): boolean => {
-    const lower = msg.toLowerCase();
-    const searchPatterns = [
-      /^(what|who|when|where|why|how|which|is|are|was|were|do|does|did|can|could|will|would|should)\b/,
-      /\b(latest|current|recent|news|today|update|price|weather|score)\b/,
-      /\b(tell me about|explain|define|meaning of|info on|search for|look up|find)\b/,
+    const lower = msg.toLowerCase().trim();
+    // Skip search only for very short greetings or simple phrases
+    const skipPatterns = [
+      /^(hi|hello|hey|thanks|thank you|ok|okay|yes|no|bye|good morning|good night|lol|haha)[\s!?.]*$/,
     ];
-    return searchPatterns.some(p => p.test(lower));
+    if (skipPatterns.some(p => p.test(lower))) return false;
+    // Search for everything else - the AI benefits from web context
+    return lower.length > 3;
   };
 
   const fetchSearchResults = async (query: string): Promise<{ context: string; sources: SearchSource[] }> => {
