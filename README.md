@@ -28,4 +28,4 @@ Processes it with AI language models
 
 Generates context-aware responses
 
-Returns the response in real tim
+Returns the response in real time.
