@@ -1,73 +1,31 @@
-# Welcome to your Lovable project
+<img width="220" height="220" alt="image" src="https://github.com/user-attachments/assets/cabe453f-f119-465d-8ccb-7445ce1a8422" />
 
-## Project info
+🤖 XlnkAI Chatbot
 
-**URL**: https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID
+XlnkAI is a free, AI-powered chatbot designed to help you with text generation, conversation, and information retrieval — all in a friendly, interactive way.
 
-## How can I edit this code?
+<img width="1366" height="615" alt="image" src="https://github.com/user-attachments/assets/2f58350c-b2e7-455b-ab42-b495e8bcd0a8" />
 
-There are several ways of editing your application.
+🚀 Features
 
-**Use Lovable**
+💬 Natural Conversations
+Talk to XlnkAI like a real human — it understands context and responds intelligently.
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and start prompting.
+⚡ Fast & Responsive
+Lightweight and optimized for quick answers.
 
-Changes made via Lovable will be committed automatically to this repo.
+🌐 Accessible Anywhere
+Works on web, mobile, and desktop platforms.
 
-**Use your preferred IDE**
+🛠️ Customizable
+Easily integrate into your projects via API.
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+🧠 How It Works
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+Receives user input
 
-Follow these steps:
+Processes it with AI language models
 
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
+Generates context-aware responses
 
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
-
-# Step 3: Install the necessary dependencies.
-npm i
-
-# Step 4: Start the development server with auto-reloading and an instant preview.
-npm run dev
-```
-
-**Edit a file directly in GitHub**
-
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
-
-**Use GitHub Codespaces**
-
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
-
-## What technologies are used for this project?
-
-This project is built with:
-
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
-
-## How can I deploy this project?
-
-Simply open [Lovable](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and click on Share -> Publish.
-
-## Can I connect a custom domain to my Lovable project?
-
-Yes, you can!
-
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
-
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+Returns the response in real tim
